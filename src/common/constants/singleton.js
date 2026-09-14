@@ -1,0 +1,45 @@
+export const REPOSITORY_KEYS = {
+  noteTemplateRepository: 'noteTemplateRepository',
+  todoListTemplateRepository: 'todoListTemplateRepository',
+  todoListTemplateItemRepository: 'todoListTemplateItemRepository',
+  taxRepository: 'taxRepository',
+  paymentTermTemplateRepository: 'paymentTermTemplateRepository',
+  basicEstimateTemplateRepository: 'basicEstimateTemplateRepository',
+  basicEstimateTemplateItemRepository: 'basicEstimateTemplateItemRepository',
+  allTemplateRepository: 'allTemplateRepository',
+  jobRepository: 'jobRepository',
+  jobTodoListRepository: 'jobTodoListRepository',
+  jobTodoListItemRepository: 'jobTodoListItemRepository',
+  noteRepository: 'noteRepository',
+  customerLineItemRepository: 'customerLineItemRepository',
+  invoiceRepository: 'invoiceRepository',
+  estimateRepository: 'estimateRepository',
+};
+
+export const SERVICE_KEYS = {
+  noteTemplateService: 'noteTemplateService',
+  todoListTemplateService: 'todoListTemplateService',
+  taxService: 'taxService',
+  paymentTermTemplateService: 'paymentTermTemplateService',
+  basicEstimateTemplateService: 'basicEstimateTemplateService',
+  allTemplateService: 'allTemplateService',
+  jobService: 'jobService',
+  jobTodoListService: 'jobTodoListService',
+  noteService: 'noteService',
+  invoiceService: 'invoiceService',
+  estimateService: 'estimateService',
+};
+
+export const CONTROLLER_KEYS = {
+  noteTemplateController: 'noteTemplateController',
+  todoListTemplateController: 'todoListTemplateController',
+  taxController: 'taxController',
+  paymentTermTemplateController: 'paymentTermTemplateController',
+  basicEstimateTemplateController: 'basicEstimateTemplateController',
+  allTemplateController: 'allTemplateController',
+  jobController: 'jobController',
+  jobTodoListController: 'jobTodoListController',
+  noteController: 'noteController',
+  invoiceController: 'invoiceController',
+  estimateController: 'estimateController',
+};

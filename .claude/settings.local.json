@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s -X PATCH http://localhost:3000/taxes/161 -H \"Content-Type: application/json\" -d '{\"name\":\"VAT \\(renamed\\)\",\"rate\":99}')",
+      "Bash(curl -s -X GET http://localhost:3000/jobs/296/invoice)"
+    ]
+  }
+}
