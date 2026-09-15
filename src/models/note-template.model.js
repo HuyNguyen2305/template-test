@@ -5,8 +5,6 @@ export const NOTE_TEMPLATE_TYPE_KEYS = [
   'Estimate',
   'Invoice',
   'Job',
-  'Top',
-  'WorkOrder',
 ];
 
 export class NoteTemplate extends Model {}

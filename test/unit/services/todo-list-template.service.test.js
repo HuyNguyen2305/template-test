@@ -85,6 +85,24 @@ describe('TodoListTemplateService', () => {
       );
       expect(result.id).toBe(1);
     });
+
+    test('creates successfully with no items', async () => {
+      todoListTemplateRepository.create.mockResolvedValue({ id: 1 });
+      todoListTemplateRepository.findByIdWithItems.mockResolvedValue({
+        id: 1,
+        items: [],
+      });
+
+      const result = await service.create({ name: 'Checklist' });
+
+      expect(todoListTemplateItemRepository.bulkCreate).toHaveBeenCalledWith(
+        [],
+        {
+          transaction: 'fake-transaction',
+        },
+      );
+      expect(result.id).toBe(1);
+    });
   });
 
   describe('update', () => {
@@ -137,6 +155,19 @@ describe('TodoListTemplateService', () => {
         todoListTemplateItemRepository.deleteAllForList,
       ).not.toHaveBeenCalled();
       expect(todoListTemplateItemRepository.bulkCreate).not.toHaveBeenCalled();
+    });
+
+    test('replaces items without touching the template row when no name is given', async () => {
+      todoListTemplateRepository.findByIdWithItems
+        .mockResolvedValueOnce({ id: 1 })
+        .mockResolvedValueOnce({ id: 1, items: [{ text: 'c' }] });
+
+      await service.update(1, { items: [{ text: 'c' }] });
+
+      expect(todoListTemplateRepository.update).not.toHaveBeenCalled();
+      expect(
+        todoListTemplateItemRepository.deleteAllForList,
+      ).toHaveBeenCalledWith(1, { transaction: 'fake-transaction' });
     });
   });
 

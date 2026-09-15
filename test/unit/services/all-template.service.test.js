@@ -40,6 +40,18 @@ describe('AllTemplateService', () => {
       });
       expect(result).toEqual([{ id: 1 }]);
     });
+
+    test('delegates to the repository search with no filters when called with nothing', async () => {
+      allTemplateRepository.search.mockResolvedValue([{ id: 1 }]);
+
+      const result = await service.list();
+
+      expect(allTemplateRepository.search).toHaveBeenCalledWith({
+        category: undefined,
+        query: undefined,
+      });
+      expect(result).toEqual([{ id: 1 }]);
+    });
   });
 
   describe('getContent', () => {

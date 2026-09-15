@@ -156,6 +156,52 @@ describe('PaymentTermTemplateService', () => {
 
       expect(result.tax1Id).toBe(1);
     });
+
+    test('includes the tax name in the generated summary/description when tax1Id is provided', async () => {
+      taxRepository.findById.mockResolvedValue({ id: 1, name: 'Sales Tax' });
+      paymentTermTemplateRepository.create.mockImplementation((data) => ({
+        id: 1,
+        ...data,
+      }));
+
+      const result = await service.create({
+        dueDateValue: 30,
+        dueDateUnit: 'Days',
+        lateFeeValue: 5,
+        lateFeeUnit: '%',
+        tax1Id: 1,
+      });
+
+      expect(result.name).toBe(
+        'Net 30, Due date: 30 days, Late payment fee 5% plus Sales Tax',
+      );
+      expect(result.description).toBe(
+        'Net 30 Terms: Payment is due within 30 days from the invoice date. Invoices that are not settled within this period will incur a late payment fee of 5% plus applicable Sales Tax.',
+      );
+    });
+
+    test('includes both tax names when tax1Id and tax2Id are both provided', async () => {
+      taxRepository.findById.mockImplementation((id) =>
+        id === 1 ? { id: 1, name: 'Sales Tax' } : { id: 2, name: 'City Tax' },
+      );
+      paymentTermTemplateRepository.create.mockImplementation((data) => ({
+        id: 1,
+        ...data,
+      }));
+
+      const result = await service.create({
+        dueDateValue: 30,
+        dueDateUnit: 'Days',
+        lateFeeValue: 5,
+        lateFeeUnit: '%',
+        tax1Id: 1,
+        tax2Id: 2,
+      });
+
+      expect(result.name).toBe(
+        'Net 30, Due date: 30 days, Late payment fee 5% plus Sales Tax and City Tax',
+      );
+    });
   });
 
   describe('getById', () => {
@@ -285,6 +331,84 @@ describe('PaymentTermTemplateService', () => {
       expect(paymentTermTemplateRepository.update).toHaveBeenCalledWith(1, {
         description: 'Custom text',
         name: 'Net 30, Due date: 30 days, Late payment fee 5%',
+      });
+    });
+
+    test('regenerates the summary with the current tax name when tax fields are omitted', async () => {
+      paymentTermTemplateRepository.findById.mockResolvedValue({
+        id: 1,
+        dueDateValue: 30,
+        dueDateUnit: 'Days',
+        lateFeeValue: 5,
+        lateFeeUnit: '%',
+        tax1Id: 1,
+      });
+      taxRepository.findById.mockResolvedValue({ id: 1, name: 'Sales Tax' });
+      paymentTermTemplateRepository.update.mockImplementation((id, data) => ({
+        id,
+        ...data,
+      }));
+
+      await service.update(1, { lateFeeValue: 10 });
+
+      expect(taxRepository.findById).toHaveBeenCalledWith(1);
+      expect(paymentTermTemplateRepository.update).toHaveBeenCalledWith(1, {
+        lateFeeValue: 10,
+        name: 'Net 30, Due date: 30 days, Late payment fee 10% plus Sales Tax',
+        description:
+          'Net 30 Terms: Payment is due within 30 days from the invoice date. Invoices that are not settled within this period will incur a late payment fee of 10% plus applicable Sales Tax.',
+      });
+    });
+
+    test('regenerates the summary with a new tax name when tax1Id is changed', async () => {
+      paymentTermTemplateRepository.findById.mockResolvedValue({
+        id: 1,
+        dueDateValue: 30,
+        dueDateUnit: 'Days',
+        lateFeeValue: 5,
+        lateFeeUnit: '%',
+        tax1Id: 1,
+      });
+      taxRepository.findById.mockImplementation((id) =>
+        id === 1 ? { id: 1, name: 'Sales Tax' } : { id: 2, name: 'City Tax' },
+      );
+      paymentTermTemplateRepository.update.mockImplementation((id, data) => ({
+        id,
+        ...data,
+      }));
+
+      await service.update(1, { tax1Id: 2 });
+
+      expect(paymentTermTemplateRepository.update).toHaveBeenCalledWith(1, {
+        tax1Id: 2,
+        name: 'Net 30, Due date: 30 days, Late payment fee 5% plus City Tax',
+        description:
+          'Net 30 Terms: Payment is due within 30 days from the invoice date. Invoices that are not settled within this period will incur a late payment fee of 5% plus applicable City Tax.',
+      });
+    });
+
+    test('drops the tax mention when tax1Id is cleared to null', async () => {
+      paymentTermTemplateRepository.findById.mockResolvedValue({
+        id: 1,
+        dueDateValue: 30,
+        dueDateUnit: 'Days',
+        lateFeeValue: 5,
+        lateFeeUnit: '%',
+        tax1Id: 1,
+      });
+      paymentTermTemplateRepository.update.mockImplementation((id, data) => ({
+        id,
+        ...data,
+      }));
+
+      await service.update(1, { tax1Id: null });
+
+      expect(taxRepository.findById).not.toHaveBeenCalled();
+      expect(paymentTermTemplateRepository.update).toHaveBeenCalledWith(1, {
+        tax1Id: null,
+        name: 'Net 30, Due date: 30 days, Late payment fee 5%',
+        description:
+          'Net 30 Terms: Payment is due within 30 days from the invoice date. Invoices that are not settled within this period will incur a late payment fee of 5%.',
       });
     });
   });

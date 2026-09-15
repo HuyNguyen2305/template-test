@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, jest, test } from '@jest/globals';
+import { UniqueConstraintError } from 'sequelize';
 import { EstimateService } from '#services/estimate.service.js';
 import { NotFoundError, ValidationError } from '#configs/error/index.js';
 
@@ -33,7 +34,7 @@ describe('EstimateService', () => {
     taxRepository = { findById: jest.fn() };
     paymentTermTemplateRepository = { findById: jest.fn() };
     basicEstimateTemplateRepository = { findByIdWithItems: jest.fn() };
-    noteRepository = { deleteAllForParent: jest.fn() };
+    noteRepository = { deleteAllForParent: jest.fn(), create: jest.fn() };
     service = new EstimateService({
       sequelize,
       jobRepository,
@@ -216,6 +217,60 @@ describe('EstimateService', () => {
       );
     });
 
+    test('creates an Estimate note from the template notes field when present', async () => {
+      jobRepository.findById.mockResolvedValue({ id: 1 });
+      estimateRepository.findByJobId.mockResolvedValue(null);
+      basicEstimateTemplateRepository.findByIdWithItems.mockResolvedValue({
+        id: 5,
+        notes: 'Template note body',
+        items: [],
+      });
+      estimateRepository.create.mockResolvedValue({ id: 10 });
+
+      await service.create(1, {
+        estimateNumber: 'EST-1',
+        basicEstimateTemplateId: 5,
+      });
+
+      expect(noteRepository.create).toHaveBeenCalledWith(
+        {
+          parentId: '10',
+          type: 'Estimate',
+          body: 'Template note body',
+          authorUserId: null,
+        },
+        { transaction: 'fake-transaction' },
+      );
+    });
+
+    test('does not create a note when the template has no notes', async () => {
+      jobRepository.findById.mockResolvedValue({ id: 1 });
+      estimateRepository.findByJobId.mockResolvedValue(null);
+      basicEstimateTemplateRepository.findByIdWithItems.mockResolvedValue({
+        id: 5,
+        notes: null,
+        items: [],
+      });
+      estimateRepository.create.mockResolvedValue({ id: 10 });
+
+      await service.create(1, {
+        estimateNumber: 'EST-1',
+        basicEstimateTemplateId: 5,
+      });
+
+      expect(noteRepository.create).not.toHaveBeenCalled();
+    });
+
+    test('does not create a note when no template is used', async () => {
+      jobRepository.findById.mockResolvedValue({ id: 1 });
+      estimateRepository.findByJobId.mockResolvedValue(null);
+      estimateRepository.create.mockResolvedValue({ id: 10 });
+
+      await service.create(1, { estimateNumber: 'EST-1' });
+
+      expect(noteRepository.create).not.toHaveBeenCalled();
+    });
+
     test('explicit items win over template items', async () => {
       jobRepository.findById.mockResolvedValue({ id: 1 });
       estimateRepository.findByJobId.mockResolvedValue(null);
@@ -270,6 +325,80 @@ describe('EstimateService', () => {
       );
     });
 
+    test('does not mix a template discountValue with an explicit discountType override', async () => {
+      jobRepository.findById.mockResolvedValue({ id: 1 });
+      estimateRepository.findByJobId.mockResolvedValue(null);
+      basicEstimateTemplateRepository.findByIdWithItems.mockResolvedValue({
+        id: 5,
+        discountValue: 15,
+        discountType: '%',
+        items: [],
+      });
+      estimateRepository.create.mockResolvedValue({ id: 10 });
+
+      await service.create(1, {
+        estimateNumber: 'EST-1',
+        basicEstimateTemplateId: 5,
+        discountType: 'flat',
+      });
+
+      expect(estimateRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          discountValue: undefined,
+          discountType: 'flat',
+        }),
+        { transaction: 'fake-transaction' },
+      );
+    });
+
+    test('does not mix a template depositValue with an explicit depositType override', async () => {
+      jobRepository.findById.mockResolvedValue({ id: 1 });
+      estimateRepository.findByJobId.mockResolvedValue(null);
+      basicEstimateTemplateRepository.findByIdWithItems.mockResolvedValue({
+        id: 5,
+        depositValue: 20,
+        depositType: '%',
+        items: [],
+      });
+      estimateRepository.create.mockResolvedValue({ id: 10 });
+
+      await service.create(1, {
+        estimateNumber: 'EST-1',
+        basicEstimateTemplateId: 5,
+        depositType: 'flat',
+      });
+
+      expect(estimateRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          depositValue: undefined,
+          depositType: 'flat',
+        }),
+        { transaction: 'fake-transaction' },
+      );
+    });
+
+    test('uses the full discount pair from the template when neither half is overridden', async () => {
+      jobRepository.findById.mockResolvedValue({ id: 1 });
+      estimateRepository.findByJobId.mockResolvedValue(null);
+      basicEstimateTemplateRepository.findByIdWithItems.mockResolvedValue({
+        id: 5,
+        discountValue: 15,
+        discountType: '%',
+        items: [],
+      });
+      estimateRepository.create.mockResolvedValue({ id: 10 });
+
+      await service.create(1, {
+        estimateNumber: 'EST-1',
+        basicEstimateTemplateId: 5,
+      });
+
+      expect(estimateRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ discountValue: 15, discountType: '%' }),
+        { transaction: 'fake-transaction' },
+      );
+    });
+
     test('passes an explicit status through to the created row', async () => {
       jobRepository.findById.mockResolvedValue({ id: 1 });
       estimateRepository.findByJobId.mockResolvedValue(null);
@@ -280,6 +409,29 @@ describe('EstimateService', () => {
       expect(estimateRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({ status: 'Won' }),
         { transaction: 'fake-transaction' },
+      );
+    });
+
+    test('wraps a UniqueConstraintError from a concurrent create into ValidationError', async () => {
+      jobRepository.findById.mockResolvedValue({ id: 1 });
+      estimateRepository.findByJobId.mockResolvedValue(null);
+      estimateRepository.create.mockRejectedValue(
+        new UniqueConstraintError({ message: 'dup', errors: [] }),
+      );
+
+      await expect(
+        service.create(1, { estimateNumber: 'EST-1' }),
+      ).rejects.toThrow(ValidationError);
+    });
+
+    test('re-throws a non-UniqueConstraintError from the transaction unchanged', async () => {
+      jobRepository.findById.mockResolvedValue({ id: 1 });
+      estimateRepository.findByJobId.mockResolvedValue(null);
+      const unexpectedError = new Error('boom');
+      estimateRepository.create.mockRejectedValue(unexpectedError);
+
+      await expect(service.create(1, { estimateNumber: 'EST-1' })).rejects.toBe(
+        unexpectedError,
       );
     });
 
@@ -429,6 +581,39 @@ describe('EstimateService', () => {
         }),
       ).rejects.toThrow(ValidationError);
       expect(sequelize.transaction).not.toHaveBeenCalled();
+    });
+
+    test('clears terms when termsSourceTemplateId is explicitly null', async () => {
+      jobRepository.findById.mockResolvedValue({ id: 1 });
+      estimateRepository.findByJobId.mockResolvedValue({ id: 10 });
+      estimateRepository.findById.mockResolvedValue({ id: 10 });
+
+      await service.update(1, { termsSourceTemplateId: null });
+
+      expect(paymentTermTemplateRepository.findById).not.toHaveBeenCalled();
+      expect(estimateRepository.update).toHaveBeenCalledWith(
+        10,
+        { termsSourceTemplateId: null, terms: null },
+        { transaction: 'fake-transaction' },
+      );
+    });
+
+    test('looks up terms from termsSourceTemplateId on update', async () => {
+      jobRepository.findById.mockResolvedValue({ id: 1 });
+      estimateRepository.findByJobId.mockResolvedValue({ id: 10 });
+      estimateRepository.findById.mockResolvedValue({ id: 10 });
+      paymentTermTemplateRepository.findById.mockResolvedValue({
+        description: 'Net 30',
+      });
+
+      await service.update(1, { termsSourceTemplateId: 7 });
+
+      expect(paymentTermTemplateRepository.findById).toHaveBeenCalledWith(7);
+      expect(estimateRepository.update).toHaveBeenCalledWith(
+        10,
+        { termsSourceTemplateId: 7, terms: 'Net 30' },
+        { transaction: 'fake-transaction' },
+      );
     });
   });
 

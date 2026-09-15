@@ -1,3 +1,4 @@
+import { UniqueConstraintError } from 'sequelize';
 import { NotFoundError, ValidationError } from '#configs/error/index.js';
 
 function toPlain(instance) {
@@ -55,6 +56,10 @@ export class EstimateService {
   async resolveTerms({ terms, termsSourceTemplateId }, template) {
     if (terms !== undefined) {
       return { terms };
+    }
+
+    if (termsSourceTemplateId === null) {
+      return { terms: null };
     }
 
     if (termsSourceTemplateId !== undefined) {
@@ -129,6 +134,18 @@ export class EstimateService {
     return { subtotal, total };
   }
 
+  resolvePairedFallback(data, template, valueKey, typeKey) {
+    if (data[valueKey] !== undefined || data[typeKey] !== undefined) {
+      return { [valueKey]: data[valueKey], [typeKey]: data[typeKey] };
+    }
+
+    if (template) {
+      return { [valueKey]: template[valueKey], [typeKey]: template[typeKey] };
+    }
+
+    return {};
+  }
+
   async resolveItemsForPersist(items = []) {
     const persistItems = [];
 
@@ -174,47 +191,76 @@ export class EstimateService {
 
     const template = await this.loadSourceTemplate(basicEstimateTemplateId);
     const terms = await this.resolveTerms(data, template);
+    const discount = this.resolvePairedFallback(
+      data,
+      template,
+      'discountValue',
+      'discountType',
+    );
+    const deposit = this.resolvePairedFallback(
+      data,
+      template,
+      'depositValue',
+      'depositType',
+    );
     const resolvedItems = await this.resolveItemsForPersist(
       this.resolveItems(items, template),
     );
 
-    return this.sequelize.transaction(async (transaction) => {
-      const estimate = await this.estimateRepository.create(
-        {
-          jobId,
-          type: data.type,
-          status: data.status,
-          estimateNumber: data.estimateNumber,
-          poNumber: data.poNumber,
-          dateIssued: data.dateIssued,
-          discountValue: data.discountValue ?? template?.discountValue,
-          discountType: data.discountType ?? template?.discountType,
-          depositValue: data.depositValue ?? template?.depositValue,
-          depositType: data.depositType ?? template?.depositType,
-          ...terms,
-        },
-        { transaction },
-      );
-
-      await this.customerLineItemRepository.bulkCreate(
-        resolvedItems.map((item, index) => ({
-          ...item,
-          parentType: 'estimate',
-          parentId: estimate.id,
-          sortOrder: index,
-        })),
-        { transaction },
-      );
-
-      const createdItems =
-        await this.customerLineItemRepository.findAllForParent(
-          'estimate',
-          estimate.id,
+    try {
+      return await this.sequelize.transaction(async (transaction) => {
+        const estimate = await this.estimateRepository.create(
+          {
+            jobId,
+            type: data.type,
+            status: data.status,
+            estimateNumber: data.estimateNumber,
+            poNumber: data.poNumber,
+            dateIssued: data.dateIssued,
+            ...discount,
+            ...deposit,
+            ...terms,
+          },
           { transaction },
         );
 
-      return { ...toPlain(estimate), items: createdItems };
-    });
+        await this.customerLineItemRepository.bulkCreate(
+          resolvedItems.map((item, index) => ({
+            ...item,
+            parentType: 'estimate',
+            parentId: estimate.id,
+            sortOrder: index,
+          })),
+          { transaction },
+        );
+
+        if (template?.notes) {
+          await this.noteRepository.create(
+            {
+              parentId: String(estimate.id),
+              type: 'Estimate',
+              body: template.notes,
+              authorUserId: null,
+            },
+            { transaction },
+          );
+        }
+
+        const createdItems =
+          await this.customerLineItemRepository.findAllForParent(
+            'estimate',
+            estimate.id,
+            { transaction },
+          );
+
+        return { ...toPlain(estimate), items: createdItems };
+      });
+    } catch (error) {
+      if (error instanceof UniqueConstraintError) {
+        throw new ValidationError(`Job ${jobId} already has an estimate`);
+      }
+      throw error;
+    }
   }
 
   async update(jobId, { items, ...data }) {

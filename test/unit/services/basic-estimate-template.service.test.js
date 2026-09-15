@@ -195,6 +195,21 @@ describe('BasicEstimateTemplateService', () => {
       ).not.toHaveBeenCalled();
     });
 
+    test('replaces items without touching the template row when no other fields are given', async () => {
+      basicEstimateTemplateRepository.findByIdWithItems
+        .mockResolvedValueOnce({ id: 1 })
+        .mockResolvedValueOnce({ id: 1, items: [{ serviceName: 'New' }] });
+
+      await service.update(1, {
+        items: [{ serviceName: 'New', cost: 20 }],
+      });
+
+      expect(basicEstimateTemplateRepository.update).not.toHaveBeenCalled();
+      expect(
+        basicEstimateTemplateItemRepository.deleteAllForTemplate,
+      ).toHaveBeenCalledWith(1, { transaction: 'fake-transaction' });
+    });
+
     test('validates a provided item tax id before updating', async () => {
       basicEstimateTemplateRepository.findByIdWithItems.mockResolvedValue({
         id: 1,

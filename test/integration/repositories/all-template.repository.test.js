@@ -36,7 +36,7 @@ describe('AllTemplateRepository (integration)', () => {
       const uniqueTag = `IntegrationTag${Date.now()}`;
 
       await NoteTemplate.schema('public').create(
-        { typeKey: 'WorkOrder', name: `${uniqueTag} Note`, body: 'body' },
+        { typeKey: 'Job', name: `${uniqueTag} Note`, body: 'body' },
         { transaction },
       );
       await PaymentTermTemplate.schema('public').create(
@@ -69,7 +69,7 @@ describe('AllTemplateRepository (integration)', () => {
       const bySourceTable = Object.fromEntries(
         results.map((row) => [row.sourceTable, row]),
       );
-      expect(bySourceTable.NoteTemplate.category).toBe('Work Order Notes');
+      expect(bySourceTable.NoteTemplate.category).toBe('Job Notes');
       expect(bySourceTable.PaymentTermTemplate.category).toBe('Payment Terms');
       expect(bySourceTable.TodoListTemplate.category).toBe('Todo Lists');
       expect(bySourceTable.BasicEstimateTemplate.category).toBe(

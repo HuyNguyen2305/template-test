@@ -4,28 +4,28 @@ function formatNumber(value) {
   return String(Number(value));
 }
 
-function generateSummary({
-  dueDateValue,
-  dueDateUnit,
-  lateFeeValue,
-  lateFeeUnit,
-}) {
+function generateSummary(
+  { dueDateValue, dueDateUnit, lateFeeValue, lateFeeUnit },
+  taxNames = [],
+) {
   const dueDate = formatNumber(dueDateValue);
   const lateFee = formatNumber(lateFeeValue);
+  const taxSuffix =
+    taxNames.length > 0 ? ` plus ${taxNames.join(' and ')}` : '';
 
-  return `Net ${dueDate}, Due date: ${dueDate} ${dueDateUnit.toLowerCase()}, Late payment fee ${lateFee}${lateFeeUnit}`;
+  return `Net ${dueDate}, Due date: ${dueDate} ${dueDateUnit.toLowerCase()}, Late payment fee ${lateFee}${lateFeeUnit}${taxSuffix}`;
 }
 
-function generateDescription({
-  dueDateValue,
-  dueDateUnit,
-  lateFeeValue,
-  lateFeeUnit,
-}) {
+function generateDescription(
+  { dueDateValue, dueDateUnit, lateFeeValue, lateFeeUnit },
+  taxNames = [],
+) {
   const dueDate = formatNumber(dueDateValue);
   const lateFee = formatNumber(lateFeeValue);
+  const taxSuffix =
+    taxNames.length > 0 ? ` plus applicable ${taxNames.join(' and ')}` : '';
 
-  return `Net ${dueDate} Terms: Payment is due within ${dueDate} ${dueDateUnit.toLowerCase()} from the invoice date. Invoices that are not settled within this period will incur a late payment fee of ${lateFee}${lateFeeUnit}.`;
+  return `Net ${dueDate} Terms: Payment is due within ${dueDate} ${dueDateUnit.toLowerCase()} from the invoice date. Invoices that are not settled within this period will incur a late payment fee of ${lateFee}${lateFeeUnit}${taxSuffix}.`;
 }
 
 export class PaymentTermTemplateService {
@@ -49,25 +49,27 @@ export class PaymentTermTemplateService {
     return paymentTermTemplate;
   }
 
-  async validateTaxIds({ tax1Id, tax2Id }) {
-    for (const taxId of [tax1Id, tax2Id]) {
-      if (taxId === undefined || taxId === null) {
-        continue;
-      }
-
-      const tax = await this.taxRepository.findById(taxId);
-
-      if (!tax) {
-        throw new ValidationError(`Tax ${taxId} not found`);
-      }
+  async resolveTax(taxId) {
+    if (taxId === undefined || taxId === null) {
+      return null;
     }
+
+    const tax = await this.taxRepository.findById(taxId);
+
+    if (!tax) {
+      throw new ValidationError(`Tax ${taxId} not found`);
+    }
+
+    return tax;
   }
 
   async create(data) {
-    await this.validateTaxIds(data);
+    const tax1 = await this.resolveTax(data.tax1Id);
+    const tax2 = await this.resolveTax(data.tax2Id);
+    const taxNames = [tax1, tax2].filter(Boolean).map((tax) => tax.name);
 
-    const name = data.name ?? generateSummary(data);
-    const description = data.description ?? generateDescription(data);
+    const name = data.name ?? generateSummary(data, taxNames);
+    const description = data.description ?? generateDescription(data, taxNames);
 
     return this.paymentTermTemplateRepository.create({
       ...data,
@@ -78,7 +80,16 @@ export class PaymentTermTemplateService {
 
   async update(id, data) {
     const current = await this.getById(id);
-    await this.validateTaxIds(data);
+
+    const tax1 =
+      data.tax1Id !== undefined
+        ? await this.resolveTax(data.tax1Id)
+        : await this.resolveTax(current.tax1Id);
+    const tax2 =
+      data.tax2Id !== undefined
+        ? await this.resolveTax(data.tax2Id)
+        : await this.resolveTax(current.tax2Id);
+    const taxNames = [tax1, tax2].filter(Boolean).map((tax) => tax.name);
 
     const payload = { ...data };
     const merged = {
@@ -89,11 +100,11 @@ export class PaymentTermTemplateService {
     };
 
     if (data.name === undefined) {
-      payload.name = generateSummary(merged);
+      payload.name = generateSummary(merged, taxNames);
     }
 
     if (data.description === undefined) {
-      payload.description = generateDescription(merged);
+      payload.description = generateDescription(merged, taxNames);
     }
 
     return this.paymentTermTemplateRepository.update(id, payload);

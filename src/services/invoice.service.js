@@ -1,3 +1,4 @@
+import { UniqueConstraintError } from 'sequelize';
 import { NotFoundError, ValidationError } from '#configs/error/index.js';
 
 function toPlain(instance) {
@@ -36,7 +37,7 @@ export class InvoiceService {
       return { terms };
     }
 
-    if (termsSourceTemplateId === undefined) {
+    if (termsSourceTemplateId === undefined || termsSourceTemplateId === null) {
       return { terms: null };
     }
 
@@ -137,42 +138,49 @@ export class InvoiceService {
     const terms = await this.resolveTerms(data);
     const resolvedItems = await this.resolveItemsForPersist(items);
 
-    return this.sequelize.transaction(async (transaction) => {
-      const invoice = await this.invoiceRepository.create(
-        {
-          jobId,
-          invoiceNumber: data.invoiceNumber,
-          status: data.status,
-          poNumber: data.poNumber,
-          dateIssued: data.dateIssued,
-          repeatsWithJob: data.repeatsWithJob,
-          discountValue: data.discountValue,
-          discountType: data.discountType,
-          amountPaid: data.amountPaid,
-          ...terms,
-        },
-        { transaction },
-      );
-
-      await this.customerLineItemRepository.bulkCreate(
-        resolvedItems.map((item, index) => ({
-          ...item,
-          parentType: 'invoice',
-          parentId: invoice.id,
-          sortOrder: index,
-        })),
-        { transaction },
-      );
-
-      const createdItems =
-        await this.customerLineItemRepository.findAllForParent(
-          'invoice',
-          invoice.id,
+    try {
+      return await this.sequelize.transaction(async (transaction) => {
+        const invoice = await this.invoiceRepository.create(
+          {
+            jobId,
+            invoiceNumber: data.invoiceNumber,
+            status: data.status,
+            poNumber: data.poNumber,
+            dateIssued: data.dateIssued,
+            repeatsWithJob: data.repeatsWithJob,
+            discountValue: data.discountValue,
+            discountType: data.discountType,
+            amountPaid: data.amountPaid,
+            ...terms,
+          },
           { transaction },
         );
 
-      return { ...toPlain(invoice), items: createdItems };
-    });
+        await this.customerLineItemRepository.bulkCreate(
+          resolvedItems.map((item, index) => ({
+            ...item,
+            parentType: 'invoice',
+            parentId: invoice.id,
+            sortOrder: index,
+          })),
+          { transaction },
+        );
+
+        const createdItems =
+          await this.customerLineItemRepository.findAllForParent(
+            'invoice',
+            invoice.id,
+            { transaction },
+          );
+
+        return { ...toPlain(invoice), items: createdItems };
+      });
+    } catch (error) {
+      if (error instanceof UniqueConstraintError) {
+        throw new ValidationError(`Job ${jobId} already has an invoice`);
+      }
+      throw error;
+    }
   }
 
   async update(jobId, { items, ...data }) {

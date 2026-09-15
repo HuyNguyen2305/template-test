@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, jest, test } from '@jest/globals';
+import { UniqueConstraintError } from 'sequelize';
 import { InvoiceService } from '#services/invoice.service.js';
 import { NotFoundError, ValidationError } from '#configs/error/index.js';
 
@@ -139,6 +140,29 @@ describe('InvoiceService', () => {
         jobId: 1,
         items: [{ id: 1, itemName: 'Labor' }],
       });
+    });
+
+    test('wraps a UniqueConstraintError from a concurrent create into ValidationError', async () => {
+      jobRepository.findById.mockResolvedValue({ id: 1 });
+      invoiceRepository.findByJobId.mockResolvedValue(null);
+      invoiceRepository.create.mockRejectedValue(
+        new UniqueConstraintError({ message: 'dup', errors: [] }),
+      );
+
+      await expect(
+        service.create(1, { invoiceNumber: 'INV-1' }),
+      ).rejects.toThrow(ValidationError);
+    });
+
+    test('re-throws a non-UniqueConstraintError from the transaction unchanged', async () => {
+      jobRepository.findById.mockResolvedValue({ id: 1 });
+      invoiceRepository.findByJobId.mockResolvedValue(null);
+      const unexpectedError = new Error('boom');
+      invoiceRepository.create.mockRejectedValue(unexpectedError);
+
+      await expect(service.create(1, { invoiceNumber: 'INV-1' })).rejects.toBe(
+        unexpectedError,
+      );
     });
 
     test('throws ValidationError when an item tax id does not exist', async () => {
@@ -310,6 +334,21 @@ describe('InvoiceService', () => {
       expect(invoiceRepository.update).toHaveBeenCalledWith(
         10,
         { termsSourceTemplateId: 5, terms: 'Net 15' },
+        { transaction: 'fake-transaction' },
+      );
+    });
+
+    test('clears terms when termsSourceTemplateId is explicitly null', async () => {
+      jobRepository.findById.mockResolvedValue({ id: 1 });
+      invoiceRepository.findByJobId.mockResolvedValue({ id: 10 });
+      invoiceRepository.findById.mockResolvedValue({ id: 10 });
+
+      await service.update(1, { termsSourceTemplateId: null });
+
+      expect(paymentTermTemplateRepository.findById).not.toHaveBeenCalled();
+      expect(invoiceRepository.update).toHaveBeenCalledWith(
+        10,
+        { termsSourceTemplateId: null, terms: null },
         { transaction: 'fake-transaction' },
       );
     });
