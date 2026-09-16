@@ -43,6 +43,7 @@ export const getTaxSchema = {
 export const createTaxSchema = {
   body: {
     type: 'object',
+    additionalProperties: false,
     required: ['name', 'rate'],
     properties: {
       name: { type: 'string', minLength: 1 },
@@ -69,6 +70,7 @@ export const updateTaxSchema = {
   },
   body: {
     type: 'object',
+    additionalProperties: false,
     properties: {
       name: { type: 'string', minLength: 1 },
       rate: { type: 'number', minimum: 0, maximum: 999.99 },

@@ -47,6 +47,7 @@ const estimateResponseSchema = {
 
 const itemInputSchema = {
   type: 'object',
+  additionalProperties: false,
   required: ['itemName', 'cost'],
   properties: {
     itemName: { type: 'string', minLength: 1 },
@@ -82,6 +83,7 @@ export const createEstimateSchema = {
   params: jobIdParam,
   body: {
     type: 'object',
+    additionalProperties: false,
     required: ['estimateNumber'],
     properties: {
       type: { type: 'string', enum: ESTIMATE_TYPES, default: 'Basic' },
@@ -115,6 +117,7 @@ export const updateEstimateSchema = {
   params: jobIdParam,
   body: {
     type: 'object',
+    additionalProperties: false,
     properties: {
       type: { type: 'string', enum: ESTIMATE_TYPES },
       status: { type: 'string', enum: ESTIMATE_STATUSES },

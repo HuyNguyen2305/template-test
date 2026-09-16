@@ -22,10 +22,11 @@ export class Baserepository {
   }
 
   async update(id, data, options = {}) {
+    const { where, ...rest } = options;
     const [, [updated]] = await this.setSchema().update(data, {
-      where: { id },
       returning: true,
-      ...options,
+      ...rest,
+      where: { id, ...where },
     });
     return updated;
   }

@@ -53,6 +53,7 @@ export const getNoteTemplateSchema = {
 export const createNoteTemplateSchema = {
   body: {
     type: 'object',
+    additionalProperties: false,
     required: ['typeKey', 'name', 'body'],
     properties: {
       typeKey: { type: 'string', enum: NOTE_TEMPLATE_TYPE_KEYS },
@@ -80,6 +81,7 @@ export const updateNoteTemplateSchema = {
   },
   body: {
     type: 'object',
+    additionalProperties: false,
     properties: {
       typeKey: { type: 'string', enum: NOTE_TEMPLATE_TYPE_KEYS },
       name: { type: 'string', minLength: 1 },

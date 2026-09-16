@@ -23,6 +23,13 @@ export function buildApp() {
     dir: path.join(__dirname, 'routers'),
   });
 
+  fastify.setNotFoundHandler((request, reply) => {
+    reply.status(404).send({
+      success: false,
+      message: `Route ${request.method}:${request.url} not found`,
+    });
+  });
+
   fastify.setErrorHandler((error, request, reply) => {
     if (error instanceof CustomError) {
       reply

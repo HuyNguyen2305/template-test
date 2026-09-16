@@ -20,6 +20,7 @@ const jobIdParam = {
 
 const createNoteBody = {
   type: 'object',
+  additionalProperties: false,
   properties: {
     body: { type: 'string', minLength: 1 },
     sourceTemplateId: { type: 'integer' },

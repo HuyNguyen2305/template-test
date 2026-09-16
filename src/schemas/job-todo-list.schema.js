@@ -22,6 +22,7 @@ const jobTodoListResponseSchema = {
 
 const itemInputSchema = {
   type: 'object',
+  additionalProperties: false,
   required: ['text'],
   properties: {
     text: { type: 'string', minLength: 1 },
@@ -75,6 +76,7 @@ export const createJobTodoListSchema = {
   },
   body: {
     type: 'object',
+    additionalProperties: false,
     required: ['name'],
     properties: {
       name: { type: 'string', minLength: 1 },
@@ -102,6 +104,7 @@ export const updateJobTodoListSchema = {
   },
   body: {
     type: 'object',
+    additionalProperties: false,
     properties: {
       name: { type: 'string', minLength: 1 },
       items: { type: 'array', items: itemInputSchema },

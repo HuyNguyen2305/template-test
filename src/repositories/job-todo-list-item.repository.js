@@ -6,9 +6,10 @@ export class JobTodoListItemRepository extends Baserepository {
   }
 
   async deleteAllForList(jobTodoListId, options = {}) {
+    const { where, ...rest } = options;
     return this.setSchema().destroy({
-      where: { jobTodoListId },
-      ...options,
+      ...rest,
+      where: { jobTodoListId, ...where },
     });
   }
 

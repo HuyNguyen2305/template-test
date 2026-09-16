@@ -46,6 +46,7 @@ const invoiceResponseSchema = {
 
 const itemInputSchema = {
   type: 'object',
+  additionalProperties: false,
   required: ['itemName', 'cost'],
   properties: {
     itemName: { type: 'string', minLength: 1 },
@@ -81,6 +82,7 @@ export const createInvoiceSchema = {
   params: jobIdParam,
   body: {
     type: 'object',
+    additionalProperties: false,
     required: ['invoiceNumber'],
     properties: {
       invoiceNumber: { type: 'string', minLength: 1 },
@@ -112,6 +114,7 @@ export const updateInvoiceSchema = {
   params: jobIdParam,
   body: {
     type: 'object',
+    additionalProperties: false,
     properties: {
       invoiceNumber: { type: 'string', minLength: 1 },
       status: { type: 'string', enum: INVOICE_STATUSES },

@@ -20,6 +20,7 @@ const todoListTemplateResponseSchema = {
 
 const itemInputSchema = {
   type: 'object',
+  additionalProperties: false,
   required: ['text'],
   properties: {
     text: { type: 'string', minLength: 1 },
@@ -60,6 +61,7 @@ export const getTodoListTemplateSchema = {
 export const createTodoListTemplateSchema = {
   body: {
     type: 'object',
+    additionalProperties: false,
     required: ['name'],
     properties: {
       name: { type: 'string', minLength: 1 },
@@ -86,6 +88,7 @@ export const updateTodoListTemplateSchema = {
   },
   body: {
     type: 'object',
+    additionalProperties: false,
     properties: {
       name: { type: 'string', minLength: 1 },
       items: { type: 'array', items: itemInputSchema },

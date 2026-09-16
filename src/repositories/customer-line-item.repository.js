@@ -6,17 +6,19 @@ export class CustomerLineItemRepository extends Baserepository {
   }
 
   async findAllForParent(parentType, parentId, options = {}) {
+    const { where, ...rest } = options;
     return this.findAll({
-      where: { parentType, parentId },
       order: [['sortOrder', 'ASC']],
-      ...options,
+      ...rest,
+      where: { parentType, parentId, ...where },
     });
   }
 
   async deleteAllForParent(parentType, parentId, options = {}) {
+    const { where, ...rest } = options;
     return this.setSchema().destroy({
-      where: { parentType, parentId },
-      ...options,
+      ...rest,
+      where: { parentType, parentId, ...where },
     });
   }
 

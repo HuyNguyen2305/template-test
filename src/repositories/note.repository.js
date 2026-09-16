@@ -6,17 +6,19 @@ export class NoteRepository extends Baserepository {
   }
 
   async findAllForParent(type, parentId, options = {}) {
+    const { where, ...rest } = options;
     return this.setSchema().findAll({
-      where: { type, parentId: String(parentId) },
       order: [['createdAt', 'ASC']],
-      ...options,
+      ...rest,
+      where: { type, parentId: String(parentId), ...where },
     });
   }
 
   async deleteAllForParent(type, parentId, options = {}) {
+    const { where, ...rest } = options;
     return this.setSchema().destroy({
-      where: { type, parentId: String(parentId) },
-      ...options,
+      ...rest,
+      where: { type, parentId: String(parentId), ...where },
     });
   }
 }

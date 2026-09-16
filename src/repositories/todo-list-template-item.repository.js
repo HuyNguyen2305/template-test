@@ -6,9 +6,10 @@ export class TodoListTemplateItemRepository extends Baserepository {
   }
 
   async deleteAllForList(todoListTemplateId, options = {}) {
+    const { where, ...rest } = options;
     return this.setSchema().destroy({
-      where: { todoListTemplateId },
-      ...options,
+      ...rest,
+      where: { todoListTemplateId, ...where },
     });
   }
 

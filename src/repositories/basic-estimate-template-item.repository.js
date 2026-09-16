@@ -6,9 +6,10 @@ export class BasicEstimateTemplateItemRepository extends Baserepository {
   }
 
   async deleteAllForTemplate(basicEstimateTemplateId, options = {}) {
+    const { where, ...rest } = options;
     return this.setSchema().destroy({
-      where: { basicEstimateTemplateId },
-      ...options,
+      ...rest,
+      where: { basicEstimateTemplateId, ...where },
     });
   }
 

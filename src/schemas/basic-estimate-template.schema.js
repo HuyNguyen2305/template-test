@@ -30,6 +30,7 @@ const basicEstimateTemplateResponseSchema = {
 
 const itemInputSchema = {
   type: 'object',
+  additionalProperties: false,
   required: ['serviceName', 'cost'],
   properties: {
     serviceName: { type: 'string', minLength: 1 },
@@ -75,6 +76,7 @@ export const getBasicEstimateTemplateSchema = {
 export const createBasicEstimateTemplateSchema = {
   body: {
     type: 'object',
+    additionalProperties: false,
     required: ['name'],
     properties: {
       name: { type: 'string', minLength: 1 },
@@ -107,6 +109,7 @@ export const updateBasicEstimateTemplateSchema = {
   },
   body: {
     type: 'object',
+    additionalProperties: false,
     properties: {
       name: { type: 'string', minLength: 1 },
       discountValue: { type: 'number', minimum: 0, maximum: 99999999.99 },

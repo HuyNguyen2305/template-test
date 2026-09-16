@@ -42,6 +42,7 @@ export const getJobSchema = {
 export const createJobSchema = {
   body: {
     type: 'object',
+    additionalProperties: false,
     required: ['name'],
     properties: {
       name: { type: 'string', minLength: 1 },
@@ -67,6 +68,7 @@ export const updateJobSchema = {
   },
   body: {
     type: 'object',
+    additionalProperties: false,
     properties: {
       name: { type: 'string', minLength: 1 },
     },

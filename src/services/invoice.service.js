@@ -1,5 +1,6 @@
 import { UniqueConstraintError } from 'sequelize';
 import { NotFoundError, ValidationError } from '#configs/error/index.js';
+import { computeItemTotals } from '#common/money.js';
 
 function toPlain(instance) {
   return typeof instance.toJSON === 'function' ? instance.toJSON() : instance;
@@ -74,17 +75,6 @@ export class InvoiceService {
     return taxSlots;
   }
 
-  computeItemTotals(cost, qty, taxSlots) {
-    const subtotal = Math.round(Number(cost) * Number(qty) * 100) / 100;
-    const taxSum = taxSlots.reduce(
-      (sum, slot) => sum + (subtotal * Number(slot.rate)) / 100,
-      0,
-    );
-    const total = Math.round((subtotal + taxSum) * 100) / 100;
-
-    return { subtotal, total };
-  }
-
   async resolveItemsForPersist(items = []) {
     const persistItems = [];
 
@@ -97,7 +87,7 @@ export class InvoiceService {
       delete item.oneTime;
 
       const taxSlots = await this.buildTaxSlots(tax1Id, tax2Id);
-      const { subtotal, total } = this.computeItemTotals(
+      const { subtotal, total } = computeItemTotals(
         item.cost,
         item.qty ?? 1,
         taxSlots,

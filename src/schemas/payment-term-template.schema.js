@@ -49,6 +49,7 @@ export const getPaymentTermTemplateSchema = {
 export const createPaymentTermTemplateSchema = {
   body: {
     type: 'object',
+    additionalProperties: false,
     required: ['dueDateValue', 'dueDateUnit', 'lateFeeValue', 'lateFeeUnit'],
     properties: {
       name: { type: 'string', minLength: 1 },
@@ -81,6 +82,7 @@ export const updatePaymentTermTemplateSchema = {
   },
   body: {
     type: 'object',
+    additionalProperties: false,
     properties: {
       name: { type: 'string', minLength: 1 },
       dueDateValue: { type: 'number', maximum: 99999999.99 },
